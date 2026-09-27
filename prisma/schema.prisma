@@ -1,0 +1,82 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// Enum de estado del usuario
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// Tabla de perfiles
+model Profile {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("profiles")
+}
+
+// Tabla principal de usuarios
+model User {
+  id                     String     @id @default(uuid())
+  email                  String     @unique
+  password               String
+  name                   String
+  lastName               String
+  status                 UserStatus @default(ACTIVE)
+  requiredChangePassword Boolean    @default(true)
+  isSuspended            Boolean    @default(false)
+  phone                  String?
+  createdById            String?   @map("createdByUserId") // ID del usuario que creó este usuario (gerente de liga o asistente/admin)
+  competitionId          String? // UUID de Competition en sports-catalog (otra DB, sin FK)
+
+  profileId Int
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  //userHistory UserHistory[]
+  historiesAffected  UserHistory[] @relation(name: "UserAffected")
+  historiesPerformed UserHistory[] @relation(name: "UserPerformer")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  emailVerified          Boolean @default(false)
+  emailVerificationToken String?
+
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
+  @@index([competitionId])
+  @@map("users")
+}
+
+model UserHistory {
+  id          String   @id @default(uuid())
+  userId      String // ID del usuario afectado
+  action      String // Ej: "CREATED", "UPDATED", "SUSPENDED"
+  field       String? // Campo afectado, si aplica (ej: "profileId", "isSuspended")
+  oldValue    String? // Valor anterior
+  newValue    String? // Nuevo valor
+  performedBy String // ID del usuario que realizó el cambio (admin, etc.)
+  createdAt   DateTime @default(now())
+
+  user            User @relation(fields: [userId], references: [id], name: "UserAffected")
+  performedByUser User @relation(fields: [performedBy], references: [id], name: "UserPerformer")
+
+  @@map("UserHistory")
+}
