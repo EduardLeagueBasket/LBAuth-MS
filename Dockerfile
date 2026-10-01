@@ -1,18 +1,17 @@
-# Stage 1: Build (Ambiente de construcción)
-FROM node:22-alpine AS build
-
-# Creamos el directorio de trabajo
+FROM node:22-alpine AS builder
 WORKDIR /usr/src/app
-
-# Copiamos archivos de dependencias
 COPY package*.json ./
-
-# Instalamos todas las dependencias (incluyendo las de desarrollo para compilar)
-RUN npm install
-
-# Copiamos el resto del código
+RUN npm ci
 COPY . .
+RUN npm run build
 
-RUN npx prisma generate
+FROM node:22-alpine AS production
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /usr/src/app/dist ./dist
 
-EXPOSE 3000
+ENV PORT=8080
+EXPOSE 8080
+
+CMD ["node", "dist/main"]
